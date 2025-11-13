@@ -109,14 +109,20 @@ async function run() {
             const update = {
                 $set: {
                     status
-               
                 }
             }
             const result = await myactivity.updateOne(query, update)
             res.send(result)
         })
 
+        app.get('/myactivities/:email/:id', async (req, res) => {
+            const { email, id } = req.params;
+            console.log("Querying myactivities:", { email, id });
+            const query = { userId: email, challengeid: id };
+            const result = await myactivity.find(query).toArray()
+            res.send(result)
 
+        })
         //tips
         app.post('/recentTips', async (req, res) => {
             const newchallenge = req.body
