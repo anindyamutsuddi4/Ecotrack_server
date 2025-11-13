@@ -103,15 +103,13 @@ async function run() {
         })
         app.patch('/myactivities/:email/:id', async (req, res) => {
             const { email, id } = req.params;
-            // const existingchallenge = await challenge.findOne({ _id: new ObjectId(id) });
             const { status } = req.body
-            // const updatedparticipants = (existingchallenge.participants || 0) + 1;
             const query = { userId: email, challengeid: id };
 
             const update = {
                 $set: {
                     status
-                    //  price: updatedproduct.price
+               
                 }
             }
             const result = await myactivity.updateOne(query, update)
