@@ -29,6 +29,8 @@ async function run() {
         const categorydescription = db.collection('categorydescription')
         const join = db.collection('joinedchallenges')
         const myactivity = db.collection('myactivities')
+        const tips = db.collection('sharedtips')
+        const events = db.collection('events')
         app.get('/challenges', async (req, res) => {
             const cursor = challenge.find().limit(6)
             const result = await cursor.toArray()
@@ -98,9 +100,30 @@ async function run() {
             const query = { userId: email }
             const result = await myactivity.find(query).toArray()
             res.send(result)
-
-
         })
+        //tips
+        app.post('/recentTips', async (req, res) => {
+            const newchallenge = req.body
+            const result = await tips.insertOne(newchallenge)
+            res.send(result)
+        })
+        app.get('/recentTips', async (req, res) => {
+            const cursor = tips.find()
+            const result = await cursor.toArray()
+            res.send(result)
+        })
+        //events
+        app.post('/events', async (req, res) => {
+            const newchallenge = req.body
+            const result = await events.insertOne(newchallenge)
+            res.send(result)
+        })
+        app.get('/events', async (req, res) => {
+            const cursor = events.find()
+            const result = await cursor.toArray()
+            res.send(result)
+        })
+
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
