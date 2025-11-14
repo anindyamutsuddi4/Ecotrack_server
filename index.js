@@ -13,7 +13,7 @@ const verifyOwnerOrAdmin = async (req, res, next) => {
     const { id } = req.params;
     const { user } = req;
     const change = await challenge.findOne({ _id: new ObjectId(id) });
-    if (change.createdBy!== user.email && user.role !== "admin") {
+    if (change.createdBy !== user.email && user.role !== "admin") {
         return res.status(401).send({ message: "Not authorized" });
     }
     req.change = change
@@ -70,7 +70,7 @@ async function run() {
             const result = await challenge.insertOne(newchallenge)
             res.send(result)
         })
-        app.patch('/challenges/:id', async (req, res) => {
+        app.patch('/challenges/:id/join', async (req, res) => {
             const id = req.params.id
             const existingchallenge = await challenge.findOne({ _id: new ObjectId(id) });
             // const updatedproduct = req.body
@@ -165,7 +165,7 @@ async function run() {
                     { _id: new ObjectId(id) },
                     { $set: updatedData }
                 );
-console.log(result)
+                console.log(result)
                 res.send({ message: "Change updated" });
             } catch (err) {
                 console.error(err);
