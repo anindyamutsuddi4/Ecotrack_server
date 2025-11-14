@@ -9,6 +9,18 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.PROJECT_NAME}:${process.env.PROJECT_PASS}@cluster0.yj7cq3y.mongodb.net/?appName=Cluster0`;
 
 
+const verifyOwnerOrAdmin = async (req, res, next) => {
+    const { id } = req.params;
+    const { user } = req;
+    const change = await challenge.findOne({ _id: new ObjectId(id) });
+    if (change.createdBy!== user.email && user.role !== "admin") {
+        return res.status(401).send({ message: "Not authorized" });
+    }
+    req.change = change
+    next();
+};
+
+
 app.get('/', (req, res) => {
     res.send('Hello World!')
 })
@@ -144,12 +156,45 @@ async function run() {
             const result = await cursor.toArray()
             res.send(result)
         })
+        app.patch('/challenges/:id', verifyOwnerOrAdmin, async (req, res) => {
+            const { id } = req.params
+            const updatedData = req.body
+
+            try {
+                const result = await challenge.updateOne(
+                    { _id: new ObjectId(id) },
+                    { $set: updatedData }
+                );
+console.log(result)
+                res.send({ message: "Change updated" });
+            } catch (err) {
+                console.error(err);
+            }
+        });
+        app.delete('/challenges/:id', verifyOwnerOrAdmin, async (req, res) => {
+            const { id } = req.params;
+
+            try {
+                const result = await challenge.deleteOne({ _id: new ObjectId(id) });
+
+                if (result.deletedCount === 0) {
+                    return res.status(404).send({ message: "Challenge not found" });
+                }
+
+                res.send({ message: "Challenge deleted successfully" });
+            } catch (err) {
+                console.error(err);
+                res.status(500).send({ message: "Server error" });
+            }
+        });
+
+
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
-      
+
         // await client.close();
     }
 }
