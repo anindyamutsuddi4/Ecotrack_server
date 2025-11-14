@@ -8,17 +8,13 @@ app.use(express.json())
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.PROJECT_NAME}:${process.env.PROJECT_PASS}@cluster0.yj7cq3y.mongodb.net/?appName=Cluster0`;
 
-
-const verifyOwnerOrAdmin = async (req, res, next) => {
-    const { id } = req.params;
-    const { user } = req;
-    const change = await challenge.findOne({ _id: new ObjectId(id) });
-    if (change.createdBy !== user.email && user.role !== "admin") {
-        return res.status(401).send({ message: "Not authorized" });
-    }
-    req.change = change
+app.use((req, res, next) => {
+    req.user = {
+        email: "admin@ecotrack.com",
+        role: "admin"
+    };
     next();
-};
+});
 
 
 app.get('/', (req, res) => {
@@ -38,10 +34,23 @@ async function run() {
         const db = client.db('eco_track')
         const challenge = db.collection('allchallenges')
         const categorydescription = db.collection('categorydescription')
-        const join = db.collection('joinedchallenges')
+        const Join = db.collection('Joinedchallenges')
         const myactivity = db.collection('myactivities')
         const tips = db.collection('sharedtips')
         const events = db.collection('events')
+
+
+        const verifyOwnerOrAdmin = async (req, res, next) => {
+            const { id, email } = req.params;
+            const { user } = req;
+            const change = await challenge.findOne({ _id: new ObjectId(id) });
+            if (change.createdBy !== email && user.email !== email) {
+                return res.status(401).send({ message: "Not authorized" });
+            }
+            req.change = change
+            next();
+        };
+
         app.get('/challenges', async (req, res) => {
             const cursor = challenge.find().limit(6)
             const result = await cursor.toArray()
@@ -98,7 +107,7 @@ async function run() {
         })
         app.post('/challenges/join/:id', async (req, res) => {
             const newchallenge = req.body
-            const result = await join.insertOne(newchallenge)
+            const result = await Join.insertOne(newchallenge)
             res.send(result)
         })
         app.post('/myactivities/:email', async (req, res) => {
@@ -123,6 +132,18 @@ async function run() {
                 }
             }
             const result = await myactivity.updateOne(query, update)
+            res.send(result)
+        })
+        app.patch('/:id/update', async (req, res) => {
+            const { id } = req.params;
+            const { totalImpact } = req.body
+            const query = { _id: new ObjectId(id) }
+            const update = {
+                $set: {
+                    totalImpact
+                }
+            }
+            const result = await challenge.updateOne(query, update)
             res.send(result)
         })
 
@@ -156,10 +177,9 @@ async function run() {
             const result = await cursor.toArray()
             res.send(result)
         })
-        app.patch('/challenges/:id', verifyOwnerOrAdmin, async (req, res) => {
+        app.patch('/challenges/:id/:email', verifyOwnerOrAdmin, async (req, res) => {
             const { id } = req.params
             const updatedData = req.body
-
             try {
                 const result = await challenge.updateOne(
                     { _id: new ObjectId(id) },
@@ -171,20 +191,14 @@ async function run() {
                 console.error(err);
             }
         });
-        app.delete('/challenges/:id', verifyOwnerOrAdmin, async (req, res) => {
+        app.delete('/challenges/:id/:email', verifyOwnerOrAdmin, async (req, res) => {
             const { id } = req.params;
-
             try {
                 const result = await challenge.deleteOne({ _id: new ObjectId(id) });
-
-                if (result.deletedCount === 0) {
-                    return res.status(404).send({ message: "Challenge not found" });
-                }
-
+                console.log(result)
                 res.send({ message: "Challenge deleted successfully" });
             } catch (err) {
                 console.error(err);
-                res.status(500).send({ message: "Server error" });
             }
         });
 
