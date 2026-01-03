@@ -2,7 +2,7 @@ const express = require('express')
 const cors = require('cors')
 require('dotenv').config()
 const app = express()
-const port = 3000
+const port = process.env.PORT || 3000
 app.use(cors())
 app.use(express.json())
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
@@ -38,7 +38,7 @@ async function run() {
         const myactivity = db.collection('myactivities')
         const tips = db.collection('sharedtips')
         const events = db.collection('events')
-
+        const Myevents = db.collection('Myevents')
 
         const verifyOwnerOrAdmin = async (req, res, next) => {
             const { id, email } = req.params;
@@ -50,6 +50,9 @@ async function run() {
             req.change = change
             next();
         };
+        app.get("/ping", (req, res) => {
+            res.send("alive");
+        });
 
         app.get('/challenges', async (req, res) => {
             const cursor = challenge.find().limit(6)
@@ -124,7 +127,7 @@ async function run() {
         app.patch('/myactivities/:email/:id', async (req, res) => {
             const { email, id } = req.params;
             const { status } = req.body
-            const query = { userId: email, challengeid: id };
+            const query = { userId: email, _id: new ObjectId(id) };
 
             const update = {
                 $set: {
@@ -134,8 +137,8 @@ async function run() {
             const result = await myactivity.updateOne(query, update)
             res.send(result)
         })
-        app.patch('/:id/update', async (req, res) => {
-            const { id } = req.params;
+        app.patch('/:id/update/:myid', async (req, res) => {
+            const { id, myid } = req.params;
             const { totalImpact } = req.body
             const query = { _id: new ObjectId(id) }
             const update = {
@@ -144,7 +147,8 @@ async function run() {
                 }
             }
             const result = await challenge.updateOne(query, update)
-            res.send(result)
+            const result2 = await myactivity.updateOne({ _id: new ObjectId(myid) }, update)
+            res.send({ challenge: result, myactivity: result2 });
         })
 
         app.get('/myactivities/:email/:id', async (req, res) => {
@@ -201,12 +205,84 @@ async function run() {
                 console.error(err);
             }
         });
+        app.patch('/events/:id', async (req, res) => {
+            const id = req.params.id
+            const existingchallenge = await events.findOne({ _id: new ObjectId(id) });
+            // const updatedproduct = req.body
+            const updatedparticipants = (existingchallenge.currentParticipants || 0) + 1;
+            const query = { _id: new ObjectId(id) }
+            const update = {
+                $set: {
+                    currentParticipants: updatedparticipants,
+                    //  price: updatedproduct.price
+                }
+            }
+            const result = await events.updateOne(query, update)
+            res.send(result)
+        })
+        app.patch('/deletedevents/:id', async (req, res) => {
+            const id = req.params.id
+            const existingchallenge = await events.findOne({ _id: new ObjectId(id) });
+            // const updatedproduct = req.body
+            const updatedparticipants = (existingchallenge.currentParticipants || 0) - 1;
+            const query = { _id: new ObjectId(id) }
+            const update = {
+                $set: {
+                    currentParticipants: updatedparticipants,
+                    //  price: updatedproduct.price
+                }
+            }
+            const result = await events.updateOne(query, update)
+            res.send(result)
+        })
+        // After you connect to MongoDB and have the collection reference
+        async function createIndexes() {
+            await Myevents.createIndex(
+                { id: 1, email: 1 },
+                { unique: true }
+            );
+            console.log("Unique index on (id,email) created");
+        }
+        createIndexes().catch(console.error);
+        app.post('/allevents/join/:email', async (req, res) => {
+            try {
+                const email = req.params.email;
+                const event = req.body;
+                const result = await Myevents.insertOne({
+                    ...event,
+                    email
+                });
 
+                res.send(result);
 
-
+            } catch (error) {
+                if (error.code === 11000) {
+                    return res.status(409).send({
+                        message: 'Already joined this event'
+                    });
+                }
+            }
+        })
+        app.get('/allevents/join/:email', async (req, res) => {
+            const { email } = req.params;
+            console.log("Querying myactivities:", { email });
+            const query = { email: email };
+            const result = await Myevents.find(query).toArray()
+            res.send(result)
+        })
+        app.delete('/allevents/join/:email/:id', async (req, res) => {
+            const { email, id } = req.params;
+            try {
+                const result = await Myevents.deleteOne({ email, _id: new ObjectId(id) });
+                console.log(result)
+                res.send({ message: "Event deleted successfully" });
+            } catch (err) {
+                console.error(err);
+            }
+        });
         // Send a ping to confirm a successful connection
         // await client.db("admin").command({ ping: 1 });
-        console.log("Pinged your deployment. You successfully connected to MongoDB!");
+        //console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
 
         // await client.close();
@@ -216,3 +292,5 @@ run().catch(console.dir);
 app.listen(port, () => {
     console.log(`Example app listening on port ${port}`)
 })
+
+
